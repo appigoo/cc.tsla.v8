@@ -2024,7 +2024,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                     help="同時滿足勝率閾值 且 平均盈虧 ≥ 此值才列入高勝率區。設為 0 = 不限制負盈虧",
                 )
 
-                if st.button("🚀 開始回測", type="primary"):
+                if st.button("🚀 開始回測", type="primary", key=f"bt_run_{ticker}"):
                     with st.spinner(f"正在計算 {ticker}（{bt_period} / {bt_interval}）三維勝率，稍候…"):
                         try:
                             # ── Prepare data（使用回測專屬時間範圍，與主監控無關）──────
