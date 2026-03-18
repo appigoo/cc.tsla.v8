@@ -2122,16 +2122,16 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                 st.code(traceback.format_exc())
 
                 # ── Results (persist via session_state) ───────────────────────────────────
-                if "bt_df_sig" in st.session_state:
+                if f"bt_df_sig_{ticker}" in st.session_state:
                     df_sig  = st.session_state[f"bt_df_sig_{ticker}"]
                     df_vol  = st.session_state[f"bt_df_vol_{ticker}"]
                     df_kl   = st.session_state[f"bt_df_kl_{ticker}"]
-                    _wr_thr          = st.session_state.get("_result_wr_thr", 60)
-                    _pnl_thr         = st.session_state.get("_result_pnl_thr", 0.0)
-                    _bt_lbl          = st.session_state.get("_result_ticker",   ticker)
-                    _bt_period_used  = st.session_state.get("_result_period",   "?")
-                    _bt_interval_used= st.session_state.get("_result_interval", "?")
-                    _bt_bars_used    = st.session_state.get("_result_total_bars",   "?")
+                    _wr_thr          = st.session_state.get(f"_result_wr_thr_{ticker}", 60)
+                    _pnl_thr         = st.session_state.get(f"_result_pnl_thr_{ticker}", 0.0)
+                    _bt_lbl          = st.session_state.get(f"_result_ticker_{ticker}",   ticker)
+                    _bt_period_used  = st.session_state.get(f"_result_period_{ticker}",   "?")
+                    _bt_interval_used= st.session_state.get(f"_result_interval_{ticker}", "?")
+                    _bt_bars_used    = st.session_state.get(f"_result_total_bars_{ticker}",   "?")
 
                     # Show what data was actually used for this backtest run
                     st.info(
@@ -2213,7 +2213,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                                               help="1 = 信號出現後的下一根K線收盤出場")
 
                                 if st.button(f"📊 展開逐筆交易記錄", key=f"detail_btn_{dim_key}_{ticker}"):
-                                    _bt_raw = st.session_state.get("bt_raw_data")
+                                    _bt_raw = st.session_state.get(f"bt_raw_data_{ticker}")
                                     if _bt_raw is None:
                                         st.warning("請重新點擊「🚀 開始回測」以載入原始資料。")
                                     else:
@@ -2338,7 +2338,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                                            .replace(" + ","_")
                                                            .replace("/","_")
                                                            .replace(" ","_"))
-                                            _ticker_safe = st.session_state.get("_result_ticker","stock")
+                                            _ticker_safe = st.session_state.get(f"_result_ticker_{ticker}","stock")
                                             _fname = (f"{_ticker_safe}_{_combo_safe}"
                                                       f"_hold{int(_hold_bars)}"
                                                       f"_{datetime.now().strftime('%Y%m%d')}.csv")
@@ -2352,9 +2352,9 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                                 ["K線形態篩選", _sel_row.get("K線形態","—")],
                                                 ["方向", _sel_row.get("方向","做多")],
                                                 ["持倉根數", int(_hold_bars)],
-                                                ["回測時間範圍", st.session_state.get("_result_period","?")],
-                                                ["K線間隔", st.session_state.get("_result_interval","?")],
-                                                ["總K線根數", st.session_state.get("_result_total_bars","?")],
+                                                ["回測時間範圍", st.session_state.get(f"_result_period_{ticker}","?")],
+                                                ["K線間隔", st.session_state.get(f"_result_interval_{ticker}","?")],
+                                                ["總K線根數", st.session_state.get(f"_result_total_bars_{ticker}","?")],
                                                 [],
                                             ]
                                             for k, v in _stats.items():
