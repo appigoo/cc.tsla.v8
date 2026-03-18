@@ -1899,7 +1899,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                 )
 
                 # ── Parameters ────────────────────────────────────────────────────────────
-                ticker = st.selectbox("選擇回測股票", selected_tickers, key="ticker")
+                # ticker already known from loop
 
                 # ── yfinance 短週期限制說明 ────────────────────────────────────────────
                 # 1m  : 最近 7 天   → 約  2,730 根（含盤前後）/ 交易時段約 390 根/天
@@ -1954,7 +1954,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                     "回測K線間隔",
                     _all_intervals,
                     index=_all_intervals.index("1d"),
-                    key="bt_interval",
+                    key=f"bt_interval_{ticker}",
                     help="短週期間隔（1m/5m/15m/30m/1h）受 yfinance 限制，可回測天數較少",
                 )
 
@@ -1967,7 +1967,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                     "回測時間範圍",
                     _period_opts,
                     index=_period_idx,
-                    key="bt_period",
+                    key=f"bt_period_{ticker}",
                     help=_period_cfg["help"],
                 )
 
@@ -2008,18 +2008,18 @@ for tab_idx, ticker in enumerate(selected_tickers):
                     )
 
                 col_a, col_b, col_c = st.columns(3)
-                bt_min    = col_a.number_input("最少信號組合數", 2, 3, int(BT_MIN_COMBO), 1, key="bt_min")
-                bt_max    = col_b.number_input("最多信號組合數", 2, 5, int(BT_MAX_COMBO), 1, key="bt_max")
-                bt_occ    = col_c.number_input("最少出現次數",   2, 20, int(BT_MIN_OCC),  1, key="bt_occ")
+                bt_min    = col_a.number_input("最少信號組合數", 2, 3, int(BT_MIN_COMBO), 1, key=f"bt_min_{ticker}")
+                bt_max    = col_b.number_input("最多信號組合數", 2, 5, int(BT_MAX_COMBO), 1, key=f"bt_max_{ticker}")
+                bt_occ    = col_c.number_input("最少出現次數",   2, 20, int(BT_MIN_OCC),  1, key=f"bt_occ_{ticker}")
 
                 col_d, col_e, _ = st.columns([1, 1, 1])
                 bt_wr_thr  = col_d.number_input(
-                    "高勝率閾值 (%)", 50, 95, 60, 5, key="bt_wr_thr",
+                    "高勝率閾值 (%)", 50, 95, 60, 5, key=f"bt_wr_thr_{ticker}",
                     help="高於此值才列入高勝率區，並可一鍵加入 Telegram 條件",
                 )
                 bt_pnl_thr = col_e.number_input(
                     "最低平均盈虧 (%)", -10.0, 20.0, 0.0, 0.1,
-                    key="bt_pnl_thr",
+                    key=f"bt_pnl_thr_{ticker}",
                     format="%.1f",
                     help="同時滿足勝率閾值 且 平均盈虧 ≥ 此值才列入高勝率區。設為 0 = 不限制負盈虧",
                 )
@@ -2091,7 +2091,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                 else "縮量", axis=1)
 
                             # Save full enriched data for detail validation
-                            st.session_state["bt_raw_data"] = bt_data.copy()
+                            st.session_state[f"bt_raw_data_{ticker}"] = bt_data.copy()
 
                             _kw = dict(min_combo=int(bt_min), max_combo=int(bt_max), min_occ=int(bt_occ))
 
@@ -2100,15 +2100,15 @@ for tab_idx, ticker in enumerate(selected_tickers):
                             df_vol  = _signal_x_volume_combos(bt_data, **_kw)
                             df_kl   = _signal_x_kline_combos(bt_data, **_kw)
 
-                            st.session_state["bt_df_sig"]      = df_sig
-                            st.session_state["bt_df_vol"]      = df_vol
-                            st.session_state["bt_df_kl"]       = df_kl
-                            st.session_state["_result_wr_thr"]      = int(bt_wr_thr)
-                            st.session_state["_result_pnl_thr"]    = float(bt_pnl_thr)
-                            st.session_state["_result_ticker"]  = ticker
-                            st.session_state["_result_period"]  = bt_period
-                            st.session_state["_result_interval"]= bt_interval
-                            st.session_state["_result_total_bars"]  = len(bt_data)
+                            st.session_state[f"bt_df_sig_{ticker}"]      = df_sig
+                            st.session_state[f"bt_df_vol_{ticker}"]      = df_vol
+                            st.session_state[f"bt_df_kl_{ticker}"]       = df_kl
+                            st.session_state[f"_result_wr_thr_{ticker}"]      = int(bt_wr_thr)
+                            st.session_state[f"_result_pnl_thr_{ticker}"]    = float(bt_pnl_thr)
+                            st.session_state[f"_result_ticker_{ticker}"]  = ticker
+                            st.session_state[f"_result_period_{ticker}"]  = bt_period
+                            st.session_state[f"_result_interval_{ticker}"]= bt_interval
+                            st.session_state[f"_result_total_bars_{ticker}"]  = len(bt_data)
 
                         except Exception as e:
                             st.error(f"回測失敗：{e}")
@@ -2117,9 +2117,9 @@ for tab_idx, ticker in enumerate(selected_tickers):
 
                 # ── Results (persist via session_state) ───────────────────────────────────
                 if "bt_df_sig" in st.session_state:
-                    df_sig  = st.session_state["bt_df_sig"]
-                    df_vol  = st.session_state["bt_df_vol"]
-                    df_kl   = st.session_state["bt_df_kl"]
+                    df_sig  = st.session_state[f"bt_df_sig_{ticker}"]
+                    df_vol  = st.session_state[f"bt_df_vol_{ticker}"]
+                    df_kl   = st.session_state[f"bt_df_kl_{ticker}"]
                     _wr_thr          = st.session_state.get("_result_wr_thr", 60)
                     _pnl_thr         = st.session_state.get("_result_pnl_thr", 0.0)
                     _bt_lbl          = st.session_state.get("_result_ticker",   ticker)
@@ -2172,7 +2172,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
 
                             # ── ONE-CLICK ADD button ───────────────────────────────────
                             btn_label = f"➕ 一鍵加入 {title} 高勝率組合到 Telegram 條件"
-                            if st.button(btn_label, key=f"add_{dim_key}", type="primary"):
+                            if st.button(btn_label, key=f"add_{dim_key}_{ticker}", type="primary"):
                                 _one_click_add(hi, dim_key)
 
                         # ── Detail validation & CSV export ────────────────────────────
@@ -2197,16 +2197,16 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                 st.info("無可選組合，請先完成回測。")
                             else:
                                 _sel = st.selectbox("選擇要驗證的組合", _combo_choices,
-                                                    key=f"detail_sel_{dim_key}")
+                                                    key=f"detail_sel_{dim_key}_{ticker}")
                                 _sel_idx = _combo_choices.index(_sel)
                                 _sel_row = _source_df.iloc[_sel_idx]
 
                                 _hold_bars = st.number_input("持倉根數（幾根K線後出場）",
                                                               min_value=1, max_value=20, value=1, step=1,
-                                                              key=f"hold_{dim_key}",
+                                                              key=f"hold_{dim_key}_{ticker}",
                                                               help="1 = 信號出現後的下一根K線收盤出場")
 
-                                if st.button(f"📊 展開逐筆交易記錄", key=f"detail_btn_{dim_key}"):
+                                if st.button(f"📊 展開逐筆交易記錄", key=f"detail_btn_{dim_key}_{ticker}"):
                                     _bt_raw = st.session_state.get("bt_raw_data")
                                     if _bt_raw is None:
                                         st.warning("請重新點擊「🚀 開始回測」以載入原始資料。")
@@ -2277,7 +2277,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                                 margin=dict(l=40,r=40,t=50,b=40),
                                             )
                                             st.plotly_chart(_fig_pnl, use_container_width=True,
-                                                            key=f"pnl_{dim_key}")
+                                                            key=f"pnl_{dim_key}_{ticker}")
 
                                             # ── Per-trade bar chart ───────────────────
                                             _fig_bar = go.Figure(go.Bar(
@@ -2299,7 +2299,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                                                 margin=dict(l=40,r=40,t=50,b=40),
                                             )
                                             st.plotly_chart(_fig_bar, use_container_width=True,
-                                                            key=f"bar_{dim_key}")
+                                                            key=f"bar_{dim_key}_{ticker}")
 
                                             # ── Detail table ──────────────────────────
                                             st.subheader("📋 逐筆交易記錄")
@@ -2406,7 +2406,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                             height=520, template="plotly_dark",
                             margin=dict(l=380, r=60, t=50, b=30),
                         )
-                        st.plotly_chart(fig_d, use_container_width=True, key=f"chart_{dim_key}")
+                        st.plotly_chart(fig_d, use_container_width=True, key=f"chart_{dim_key}_{ticker}")
 
                     # ── One-click add helper (dedup + re-rank) ────────────────────────
                     def _one_click_add(hi_df: pd.DataFrame, dim_key: str):
@@ -2538,7 +2538,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                         max_value=100,
                         value=_wr_thr,
                         step=5,
-                        key="merge_thr",
+                        key=f"merge_thr_{ticker}",
                         help="三個維度中勝率高於此值的組合才會被納入，設為 0 則全部納入",
                     )
 
@@ -2643,7 +2643,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                         f"🔀 確認合併並覆蓋 Telegram 條件表（共 {_n_preview} 條）",
                         type="primary",
                         disabled=_btn_disabled,
-                        key="merge_all_dims_btn",
+                        key=f"merge_all_dims_btn_{ticker}",
                         help="此操作將清除現有條件表所有內容，以三維合併結果取代",
                     ):
                         # 執行覆蓋
