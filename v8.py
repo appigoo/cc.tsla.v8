@@ -1055,33 +1055,6 @@ ALL_SIGNAL_TYPES = sorted([
     "📈 VIX平靜買入","📈 VIX下降趨勢買入","✅ 量價","🔄 新转折点",
 ] + list(SELL_SIGNALS))
 
-# ── Telegram 發送開關 ────────────────────────────────────────────────────────
-if "tg_enabled" not in st.session_state:
-    st.session_state["tg_enabled"] = True   # 預設開啟
-
-_sw_col, _sw_info = st.columns([1, 5])
-with _sw_col:
-    _sw_label = (
-        "🟢 Telegram：開啟" if st.session_state["tg_enabled"]
-        else "🔴 Telegram：已關閉"
-    )
-    if st.button(_sw_label, key="tg_toggle_btn", use_container_width=True):
-        st.session_state["tg_enabled"] = not st.session_state["tg_enabled"]
-        st.rerun()
-with _sw_info:
-    if st.session_state["tg_enabled"]:
-        st.success("🟢 **Telegram 發送開啟**：條件匹配時自動推送訊號", icon="✅")
-    else:
-        st.warning(
-            "🔴 **Telegram 已關閉（調參模式）**：條件匹配時只顯示 UI 提示，不發送任何訊息。"
-            "完成調參後請重新開啟。",
-            icon="🔕",
-        )
-
-
-selected_signals = st.multiselect("選擇需要 Telegram 推播的信號",
-                                   ALL_SIGNAL_TYPES, default=["📈 新买入信号"])
-
 # ── 每支股票預設條件表（各 Tab 獨立使用） ─────────────────────────────────────
 _TG_DEFAULT = pd.DataFrame({
     "排名":       ["1","2","3","4","5"],
@@ -1242,7 +1215,7 @@ def _tg_editor(ticker: str) -> pd.DataFrame:
 st.title("📊 股票監控儀表板")
 st.caption(f"⏱ 更新時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-tabs = st.tabs([f"📈 {t}" for t in selected_tickers])
+tabs = st.tabs([f"📈 {t}" for t in selected_tickers] + ["🔬 回測分析"])
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MAIN LOOP  (each ticker)
@@ -1253,6 +1226,39 @@ for tab_idx, ticker in enumerate(selected_tickers):
         # ── 每支股票的 Telegram 條件表（獨立持久化） ─────────────────────────
         _tk_conds = _tg_init(ticker)
 
+        # ── 每支股票獨立的 Telegram 開關 ──────────────────────────────────────
+        _tg_en_key = f"tg_enabled_{ticker}"
+        if _tg_en_key not in st.session_state:
+            st.session_state[_tg_en_key] = True
+
+        _sw_col, _sw_info = st.columns([1, 5])
+        with _sw_col:
+            _sw_label = (
+                f"🟢 {ticker} Telegram：開啟"
+                if st.session_state[_tg_en_key]
+                else f"🔴 {ticker} Telegram：已關閉"
+            )
+            if st.button(_sw_label, key=f"tg_toggle_{ticker}", use_container_width=True):
+                st.session_state[_tg_en_key] = not st.session_state[_tg_en_key]
+                st.rerun()
+        with _sw_info:
+            if st.session_state[_tg_en_key]:
+                st.success(f"🟢 **{ticker} Telegram 開啟**：條件匹配時自動推送", icon="✅")
+            else:
+                st.warning(
+                    f"🔴 **{ticker} Telegram 已關閉（調參模式）**：只顯示 UI 提示，不發送訊息。",
+                    icon="🔕",
+                )
+
+        # ── 每支股票獨立的信號推播選擇 ────────────────────────────────────────
+        selected_signals = st.multiselect(
+            f"選擇 {ticker} 需要 Telegram 推播的信號",
+            ALL_SIGNAL_TYPES,
+            default=["📈 新买入信号"],
+            key=f"selected_signals_{ticker}",
+        )
+
+        # ── 條件表 ────────────────────────────────────────────────────────────
         st.subheader(f"📋 {ticker} Telegram 觸發條件配置（可編輯）")
 
         # 一鍵複製第一支股票的條件表（第二支股票起才顯示）
@@ -1582,7 +1588,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                         f"成交量：{_fmt_vol(data['Volume'].iloc[-1])}  "
                         f"({data['成交量標記'].iloc[-1]})"
                     )
-                    if st.session_state.get("tg_enabled", True):
+                    if st.session_state.get(f"tg_enabled_{ticker}", True):
                         _ok, _err = send_telegram_alert(_msg)
                         if _ok:
                             st.toast(f"📡 Telegram 已推送：{sig} ({_p1_dir_label})", icon="✅")
@@ -1755,7 +1761,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                 # 逐一發送每條匹配訊息
                 _send_ok_count  = 0
                 _send_err_msgs  = []
-                _tg_on = st.session_state.get("tg_enabled", True)
+                _tg_on = st.session_state.get(f"tg_enabled_{ticker}", True)
 
                 if not _tg_on:
                     # 開關關閉：靜默，只顯示 UI 提示
@@ -1816,7 +1822,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
 
 
             # ── Breakout / Breakdown alerts ────────────────────────────────
-            _tg_on_bo = st.session_state.get("tg_enabled", True)
+            _tg_on_bo = st.session_state.get(f"tg_enabled_{ticker}", True)
 
             if pd.notna(data["High_Max"].iloc[-1]) and data["High"].iloc[-1] >= data["High_Max"].iloc[-1]:
                 _bo_msg = (
@@ -2457,7 +2463,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                         _added_n = max(added, 0)
                         st.success(
                             f"✅ 已追加 **{_added_n}** 條新組合（去重後共 **{len(combined)}** 條）。\n\n"
-                            "📋 請捲動至頁面頂部的「**Telegram 觸發條件配置**」表格查看。\n\n"
+                            f"📋 請切換至「📈 {ticker}」Tab 查看「Telegram 觸發條件配置」表格。\n\n"
                             "系統每次刷新時，會自動比對最新一根K線是否符合條件表中的任何一條。\n"
                             "一旦匹配，立即透過 Telegram 發送包含「現價、信號、RSI、MACD、"
                             "K線形態、回測勝率」的完整交易信號。"
@@ -2655,7 +2661,7 @@ for tab_idx, ticker in enumerate(selected_tickers):
                             f"🎯 **覆蓋完成！** Telegram 觸發條件表已更新為三維合併結果。\n\n"
                             f"共 **{_n_preview}** 條條件（勝率 ≥ {_merge_thr}%），"
                             f"依勝率由高至低排名。\n\n"
-                            "📋 請查看頁面上方的「Telegram 觸發條件配置」表格確認。\n"
+                            f"📋 請切換至「📈 {ticker}」Tab 查看「Telegram 觸發條件配置」表格。\n"
                             "系統每次刷新時，最新K線若符合其中任一條件即自動觸發 Telegram 交易信號。"
                         )
                         st.balloons()
@@ -2666,6 +2672,11 @@ for tab_idx, ticker in enumerate(selected_tickers):
             with st.expander("詳細錯誤"):
                 st.code(traceback.format_exc())
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  回測分析 Tab（獨立於股票 for loop 之外）
+# ─────────────────────────────────────────────────────────────────────────────
+with tabs[-1]:
+    pass   # 回測分析內容已在各股票 Tab 的 try 區塊內，透過 bt_ticker 選擇對應股票
 
 #  AUTO REFRESH (FIX: replace while True + time.sleep with time.sleep + st.rerun)
 # ═════════════════════════════════════════════════════════════════════════════
